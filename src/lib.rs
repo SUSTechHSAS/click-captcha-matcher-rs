@@ -3,8 +3,17 @@
 //! JPEG decoding, fixed-layout cropping, the two-tower CNN and the 360-permutation
 //! assignment, all in `no_std` Rust with libc as the only dependency. The C ABI
 //! is in `include/ccm.h`; `python/solver.py` wraps it with ctypes.
+//!
+//! `std` feature: 给"自己带 std 的调用方"用。默认关闭，`no_std` 那套
+//! （自带分配器 + abort-on-panic + `rust_eh_personality`）在这时会全部让开。
+//!
+//! 为什么需要它：no_std 的 crate 没法在**展开 panic** 的构建里编译
+//! （`unwinding panics are not supported without std`），而 `cargo test` 的测试
+//! 框架必须展开 panic。所以一个 std 程序（比如 course-grabber）想把这个库当普通
+//! 依赖用、并且还要能跑 `cargo test`，就得让它在 std 模式下编一遍。
+//! 推理代码本身两种模式下完全一样。
 
-#![cfg_attr(not(test), no_std)]
+#![cfg_attr(all(not(test), not(feature = "std")), no_std)]
 
 extern crate alloc;
 
@@ -14,7 +23,7 @@ pub mod geometry;
 pub mod jpeg;
 pub mod kernel;
 pub mod model;
-#[cfg(not(test))]
+#[cfg(all(not(test), not(feature = "std")))]
 mod rt;
 #[cfg(test)]
 mod tests;

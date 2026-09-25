@@ -22,6 +22,10 @@ test = false
 default = ["embed-model"]
 # Compile models/w16.ccm (int8, ~166 KB) into the binary so no model file has to ship.
 embed-model = []
+# 用调用方自己的 std（自带分配器与 panic 策略），不再编译 rt.rs 里那套 no_std 运行期。
+# 需要它的场景：std 程序把它当普通依赖用，尤其是还要能跑 `cargo test`
+#（测试框架要求展开 panic，而 no_std 目标没法展开）。默认关闭。
+std = []
 
 [dependencies]
 libc = { version = "0.2", default-features = false }

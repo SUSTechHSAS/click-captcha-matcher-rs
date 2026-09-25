@@ -1,0 +1,38 @@
+[package]
+name = "click-captcha-matcher"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+license = "MIT"
+description = "250x80 click captcha JPEG -> 4 click points: two-tower glyph matcher, no_std, libc only"
+publish = false
+
+[lib]
+name = "ccm"
+# cdylib: libccm.so / ccm.dll / libccm.dylib with the C ABI in include/ccm.h
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+[[bin]]
+name = "ccm-cli"
+path = "src/main.rs"
+test = false
+
+[features]
+default = ["embed-model"]
+# Compile models/w16.ccm (int8, ~166 KB) into the binary so no model file has to ship.
+embed-model = []
+
+[dependencies]
+libc = { version = "0.2", default-features = false }
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+debug = false
+
+[profile.dev]
+panic = "abort"

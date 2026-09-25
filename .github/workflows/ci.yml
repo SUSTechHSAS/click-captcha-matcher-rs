@@ -1,0 +1,58 @@
+name: CI
+
+# Tests and release binaries for the platforms course-grabber ships.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.asset }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-22.04, asset: linux-x64 }        # glibc 2.35: runs on older distros too
+          - { os: ubuntu-22.04-arm, asset: linux-arm64 }
+          - { os: macos-14, asset: macos-arm64 }
+          - { os: macos-15-intel, asset: macos-x64 }
+          - { os: windows-latest, asset: windows-x64 }
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install stable --profile minimal && rustup default stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: cargo test --release
+      - run: cargo build --release
+
+      - name: Smoke test (CLI, Python wrapper)
+        shell: bash
+        run: |
+          set -e
+          want=$(awk '$1 == "synth0.jpg" {print $4}' tests/fixtures/expected.txt)
+          ./target/release/ccm-cli tests/fixtures/synth0.jpg | tee out.txt
+          grep -q "^$want " out.txt
+          python python/solver.py tests/fixtures/synth0.jpg | tee out.txt
+          grep -q " $want " out.txt
+          ./target/release/ccm-cli -b 20 tests/fixtures/synth*.jpg
+
+      - name: Package
+        shell: bash
+        run: |
+          set -e
+          d=dist/ccm-${{ matrix.asset }}
+          mkdir -p $d
+          cp include/ccm.h python/solver.py README.md LICENSE $d/
+          for f in libccm.so libccm.dylib ccm.dll ccm.dll.lib ccm-cli ccm-cli.exe; do
+            [ -f target/release/$f ] && cp target/release/$f $d/ || true
+          done
+          ls -l $d
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ccm-${{ matrix.asset }}
+          path: dist/ccm-${{ matrix.asset }}
